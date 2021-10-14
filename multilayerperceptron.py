@@ -50,7 +50,7 @@ class MultiLayerPerceptron:
             activation_values = np.insert(activation_values, 0, -1)
             activation_values = activation_values.reshape((activation_values.shape[0], 1))
             self.a.append(activation_values)
-            net_inputs = np.matmul(w, activation_values)
+            net_inputs = np.dot(w, activation_values)
             self.n.append(net_inputs)
             activation_values = self._activation_function(net_inputs)
         self.a.append(activation_values)
@@ -64,30 +64,25 @@ class MultiLayerPerceptron:
         for i in reversed(range(1, num_layers)):
             is_output_layer = i == output_layer
             a = self.a[i] if is_output_layer else np.delete(self.a[i], 0, 0)
-            d = self._activation_function_derivative(a.reshape((a.shape[0], )))
+            d = self._activation_function_derivative(a)
             derivatives = np.diag(d.reshape((d.shape[0],)))
             self.derivatives = [derivatives] + self.derivatives
             if is_output_layer:
-                s = np.multiply(np.multiply(-2, derivatives), error)
+                s = np.dot(-2 * derivatives, error)
                 self.s.append(s)
             else:
                 weights = np.delete(self.weights[i], 0, 1)
-                s = np.matmul(np.matmul(derivatives, weights.T), self.s[0])
+                s = np.dot(np.dot(derivatives, weights.T), self.s[0])
                 self.s = [s] + self.s
 
     def gradient_descent(self, learning_rate):
-        print(len(self.s))
-        print(len(self.a))
         for i in range(len(self.weights)):
-            print(i)
-            print(self.s[i].shape)
-            print(self.a[i].T.shape)
-            new_w = self.weights[i] + np.multiply(-learning_rate * self.s[i], self.a[i].T)
+            new_w = self.weights[i] + np.dot(-learning_rate * self.s[i], self.a[i].T)
             self.weights[i] = new_w
 
     def fit(self, inputs, desired_outputs, epochs, learning_rate, desired_error=None, plotter=None):
         converged = False
-        cumulative_error = 1
+        cumulative_error = desired_error if desired_error else 1
         for epoch in range(epochs):
             if plotter:
                 plotter.current_epoch = epoch
@@ -97,18 +92,20 @@ class MultiLayerPerceptron:
             cumulative_error = 0
             for _input, desired_output in zip(inputs, desired_outputs):
                 output = self.forward_propagate(_input)
+                desired_output = desired_output.reshape(output.shape)
                 error = desired_output - output
                 self.back_propagate(error)
                 self.gradient_descent(learning_rate)
                 cumulative_error += np.average(error ** 2)
             if plotter:
                 plotter.plot_errors(cumulative_error)
+            print(f"Error at epoch {epoch}: {cumulative_error}")
         return converged
 
     def guess(self, _input, discrete_output=True):
         output = self.forward_propagate(_input)
         if discrete_output:
-            output = np.array([1 if x >= 0 else 0 for x in output])
+            output = np.array([1 if x >= 0.5 else 0 for x in output])
         else:
             output = output.flatten()
         return output
