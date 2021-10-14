@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.backend_bases import MouseButton
 from matplotlib.colors import ListedColormap
 from matplotlib.widgets import TextBox, Button
 
@@ -85,6 +86,9 @@ class Plotter:
             self.mlp_weights_initialized = True
 
     def __fit_mlp(self, event):
+        for boundary in self.mlp_decision_boundaries:
+            boundary.remove()
+        self.mlp_decision_boundaries = []
         learning_rate_initialized = self.learning_rate != 0
         max_epochs_initialized = self.max_epochs != 0
         desired_error_is_set = self.desired_error != 0.0
@@ -106,31 +110,30 @@ class Plotter:
             plt.pause(MAIN_SUBPLOT_PAUSE_INTERVAL)
             self.mlp_fitted = True
             self.algorithm_convergence_text.set_text(None)
+        self.plot_decision_regions()
+        plt.pause(MAIN_SUBPLOT_PAUSE_INTERVAL)
 
     def __switch_data_set(self, event):
         self.current_data_set = not self.current_data_set
         self.button_data_set.label.set_text(BUTTON_SWITCH_DATA_SET_TEXT % (self.current_data_set + 1))
 
-    def plot_decision_regions(self, resolution=0.02):
-        markers = ('x', '.', '^', 'v')
-        cmap = ListedColormap(BASE_COLORS[:len(np.unique(self.Y))])
+    def plot_decision_regions(self, points=250):
+        cmap = ListedColormap(BASE_COLORS[:2 ** self.mlp.num_neurons_output])
 
-        # plot the decision regions by creating a pair of grid arrays xx1 and xx2 via meshgrid function in Numpy
-        x1_min, x1_max = self.X[:, 0].min() - 1, self.X[:, 0].max() + 1
-        x2_min, x2_max = self.X[:, 1].min() - 1, self.X[:, 1].max() + 1
-        xx1, xx2 = np.meshgrid(np.arange(x1_min, x1_max, resolution), np.arange(x2_min, x2_max, resolution))
+        coords = np.linspace(NORMALIZATION_RANGE[0], NORMALIZATION_RANGE[1], points)
+        x, y = np.meshgrid(coords, coords)
 
-        # predict the class labels z of the grid points
-        Z = np.array([self.mlp.guess(np.insert(x, 0, -1)) for x in np.array([xx1.ravel(), xx2.ravel()]).T])
-        Z = Z.reshape(xx1.shape)
+        Z = np.array([self.mlp.guess(x) for x in np.array([x.ravel(), y.ravel()]).T])
+        new_z = np.array([])
+        for z in Z:
+            guess_index_string = ""
+            for n in z:
+                guess_index_string += str(n)
+            guess_index = int(guess_index_string, 2)
+            new_z = np.append(new_z, guess_index)
+        Z = new_z.reshape(x.shape)
 
-        # draw the contour using matplotlib
-        self.ax_main.contourf(xx1, xx2, Z, alpha=0.4, cmap=cmap)
-
-        # plot class samples
-        for i, cl in enumerate(np.unique(self.Y)):
-            self.ax_main.scatter(x=self.X[self.Y == cl, 0], y=self.X[self.Y == cl, 1],
-                                 alpha=0.8, c=cmap(i), marker=markers[i], label=cl)
+        self.ax_main.contourf(x, y, Z, alpha=0.2, cmap=cmap)
 
     def plot_decision_boundaries(self, weights):
         creating_boundaries = len(self.mlp_decision_boundaries) == 0
@@ -139,12 +142,10 @@ class Plotter:
                                                         CURRENT_EPOCH_TEXT % self.current_epoch,
                                                         fontsize=CURRENT_EPOCH_TEXT_FONT_SIZE)
         else:
-            print(len(self.mlp_decision_boundaries))
             self.current_epoch_text.set_text(CURRENT_EPOCH_TEXT % self.current_epoch)
         x1 = np.array([self.X[:, 0].min() - 2, self.X[:, 0].max() + 2])
         for i in range(len(weights)):
             weight = weights[i]
-            print(weight)
             m = -weight[1] / weight[2]
             c = weight[0] / weight[2]
             x2 = m * x1 + c
@@ -155,7 +156,6 @@ class Plotter:
                     x2,
                     DECISION_BOUNDARIES_MARKERS[i % len(DECISION_BOUNDARIES_MARKERS)]
                 )
-                print(decision_boundary)
                 self.mlp_decision_boundaries.append(decision_boundary)
             else:
                 self.mlp_decision_boundaries[i].set_xdata(x1)
@@ -168,6 +168,9 @@ class Plotter:
             self.mlp_errors = [[], []]
         else:
             self.ax_errors.clear()
+        self.ax_errors.set_title(ERRORS_SUBPLOT_TITLE)
+        self.ax_errors.set_xlabel(ERRORS_SUBPLOT_XLABEL)
+        self.ax_errors.set_ylabel(ERRORS_SUBPLOT_YLABEL)
         self.mlp_errors[0].append(self.current_epoch)
         self.mlp_errors[1].append(cumulative_error)
         self.ax_errors.plot(self.mlp_errors[0], self.mlp_errors[1], ERRORS_PLOT_MARKER)
@@ -176,15 +179,14 @@ class Plotter:
     def __onclick(self, event):
         if event.inaxes == self.ax_main:
             current_point = [event.xdata, event.ydata]
-            is_right_click = event.button == 1
+            is_right_click = event.button == MouseButton.RIGHT
             marker_index_string = str(int(self.current_data_set)) + str(int(is_right_click))
             marker_index = int(marker_index_string, 2)
             if self.mlp_fitted:
-                current_point = current_point
                 guess = self.mlp.guess(current_point)
                 guess_index_string = ""
                 for x in guess:
-                    guess_index_string += str(x[0])
+                    guess_index_string += str(x)
                 guess_index = int(guess_index_string, 2)
                 self.ax_main.plot(event.xdata, event.ydata, CLASSES_MARKERS_POST_FIT[guess_index])
             else:
