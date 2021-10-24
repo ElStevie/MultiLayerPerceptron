@@ -17,10 +17,9 @@ class MultiLayerPerceptron:
 
     ACTIVATION_FUNCTION = SIGMOID_FUNCTION
 
-    def __init__(self, num_neurons_input, num_neurons_in_hidden_layers, num_neurons_output, normalization_range=None):
-        self.INPUT_VECTOR_SIZE = num_neurons_input
+    def __init__(self, input_vector_size, num_neurons_in_hidden_layers, num_neurons_output, normalization_range=None):
+        self.input_vector_size = input_vector_size
         self.normalization_range = normalization_range if normalization_range is not None else [-5, 5]
-        self.num_neurons_input = num_neurons_input
         self.num_neurons_in_hidden_layers = [x for x in num_neurons_in_hidden_layers if x > 0]
         self.num_neurons_output = num_neurons_output
         self.weights = []
@@ -37,8 +36,8 @@ class MultiLayerPerceptron:
             diff = 0.000001
             return (b - a) * rng.random(size) + (a + diff if a < 0 else a - diff)
 
-        layers = [self.num_neurons_input] + self.num_neurons_in_hidden_layers + [self.num_neurons_output]
-        self.weights.append(get_weights_within_normalization_range((layers[0], self.INPUT_VECTOR_SIZE + 1)))
+        layers = self.num_neurons_in_hidden_layers + [self.num_neurons_output]
+        self.weights.append(get_weights_within_normalization_range((layers[0], self.input_vector_size + 1)))
         for i in range(1, len(layers)):
             self.weights.append(get_weights_within_normalization_range((layers[i], layers[i - 1] + 1)))
 
