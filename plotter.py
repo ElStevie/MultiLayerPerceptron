@@ -43,10 +43,6 @@ class Plotter:
         self.ax_errors.set_xlabel(ERRORS_SUBPLOT_XLABEL)
         self.ax_errors.set_ylabel(ERRORS_SUBPLOT_YLABEL)
 
-        self.text_box_neurons_input_layer = new_text_box(
-            TEXT_BOX_NEURONS_INPUT_LAYER_AXES,
-            TEXT_BOX_NEURONS_INPUT_LAYER_PROMPT
-        )
         self.text_box_neurons_hidden_layers = new_text_box(
             TEXT_BOX_NEURONS_HIDDEN_LAYERS_AXES,
             TEXT_BOX_NEURONS_HIDDEN_LAYERS_PROMPT
@@ -60,7 +56,6 @@ class Plotter:
             plt.axes(BUTTON_SWITCH_DATA_SET_AXES),
             BUTTON_SWITCH_DATA_SET_TEXT % (self.current_data_set + 1)
         )
-        self.text_box_neurons_input_layer.on_submit(self.__submit_neurons_input_layer)
         self.text_box_neurons_hidden_layers.on_submit(self.__submit_neurons_hidden_layers)
         self.text_box_max_epochs.on_submit(self.__submit_max_epochs)
         self.text_box_learning_rate.on_submit(self.__submit_learning_rate)
@@ -72,11 +67,11 @@ class Plotter:
         plt.show()
 
     def __initialize_weights(self, event):
-        mlp_architecture_defined = self.neurons_input_layer > 1 and self.neurons_hidden_layers
+        mlp_architecture_defined = self.neurons_hidden_layers is not None
         points_plotted = len(self.X) > 0
         if mlp_architecture_defined and points_plotted:
             self.mlp = MultiLayerPerceptron(
-                self.neurons_input_layer,
+                2,
                 self.neurons_hidden_layers,
                 NEURONS_OUTPUT_LAYER,
                 NORMALIZATION_RANGE
@@ -209,13 +204,6 @@ class Plotter:
                 text_box.set_val(value)
         finally:
             return value
-
-    def __submit_neurons_input_layer(self, expression):
-        self.neurons_input_layer = self.__check_if_valid_expression(
-            expression,
-            self.text_box_neurons_input_layer,
-            NEURONS_INPUT_LAYER
-        )
 
     def __submit_neurons_hidden_layers(self, expression):
         result = self.__check_if_valid_expression(
