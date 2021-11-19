@@ -67,16 +67,17 @@ class MultiLayerPerceptron:
             derivatives = np.diag(d.reshape((d.shape[0],)))
             self.derivatives = [derivatives] + self.derivatives
             if is_output_layer:
-                s = np.dot(-2 * derivatives, error)
+                s = -2 * np.dot(derivatives, error)
                 self.s.append(s)
             else:
                 weights = np.delete(self.weights[i], 0, 1)
-                s = np.dot(np.dot(derivatives, weights.T), self.s[0])
+                jacobian_matrix = np.dot(derivatives, weights.T)
+                s = np.dot(jacobian_matrix, self.s[0])
                 self.s = [s] + self.s
 
     def gradient_descent(self, learning_rate):
         for i in range(len(self.weights)):
-            new_w = self.weights[i] + np.dot(-learning_rate * self.s[i], self.a[i].T)
+            new_w = self.weights[i] - learning_rate * np.dot(self.s[i], self.a[i].T)
             self.weights[i] = new_w
 
     def fit(self, inputs, desired_outputs, epochs, learning_rate, desired_error=None, plotter=None):
@@ -93,9 +94,10 @@ class MultiLayerPerceptron:
                 output = self.forward_propagate(_input)
                 desired_output = desired_output.reshape(output.shape)
                 error = desired_output - output
+                squared_error = np.dot(error.T, error)
                 self.back_propagate(error)
                 self.gradient_descent(learning_rate)
-                cumulative_error += np.average(error ** 2)
+                cumulative_error += squared_error[0][0]
             if plotter:
                 plotter.plot_errors(cumulative_error)
             print(f"Error at epoch {epoch}: {cumulative_error}")
