@@ -11,7 +11,9 @@ FIG_HEIGHT = 7
 SUBPLOT_ROWS = 1
 SUBPLOT_COLS = 2
 SUBPLOT_BOTTOM_ADJUST = 0.35
-FIG_SUPERIOR_TITLE = "Backpropagation training algorithm"
+FIG_SUPERIOR_TITLE = "Backpropagation with %s training algorithm"
+STD_ALGORITHM_NAME = "standard"
+QP_ALGORITHM_NAME = "Quickprop"
 MAIN_SUBPLOT_TITLE = "Multilayer Perceptron"
 ERRORS_SUBPLOT_TITLE = "Cumulative error"
 ERRORS_SUBPLOT_XLABEL = "Epochs"
@@ -38,7 +40,8 @@ CLASSES_MARKERS_PRE_FIT = [color + marker for marker, color in zip(CLASSES_MARKE
 CLASSES_MARKERS_POST_FIT = ['k' + marker for marker in CLASSES_MARKERS]
 
 DECISION_BOUNDARIES_MARKERS = [c + '-' for c in reversed(BASE_COLORS)]
-ERRORS_PLOT_MARKER = 'm-'
+QP_ERRORS_PLOT_MARKER = 'm-'
+STD_ERRORS_PLOT_MARKER = 'g-'
 
 TEXT_BOX_NEURONS_HIDDEN_LAYERS_AXES = [0.5, 0.2, 0.175, 0.05]
 TEXT_BOX_NEURONS_HIDDEN_LAYERS_PROMPT = "Neurons in hidden layers:"

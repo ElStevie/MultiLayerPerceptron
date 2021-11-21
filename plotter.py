@@ -25,10 +25,12 @@ class Plotter:
     current_epoch_text = None
     algorithm_convergence_text = None
     mlp_weights_initialized = False
+    quickprop_done = False
     mlp_fitted = False
     mlp_errors = None
     done = False
     mlp_decision_boundaries = []
+    mlp_sweep = None
     current_data_set = 0
 
     def __init__(self):
@@ -37,7 +39,7 @@ class Plotter:
         plt.subplots_adjust(bottom=SUBPLOT_BOTTOM_ADJUST)
         self.ax_main.set_xlim(NORMALIZATION_RANGE)
         self.ax_main.set_ylim(NORMALIZATION_RANGE)
-        self.fig.suptitle(FIG_SUPERIOR_TITLE)
+        self.fig.suptitle(FIG_SUPERIOR_TITLE % QP_ALGORITHM_NAME)
         self.ax_main.set_title(MAIN_SUBPLOT_TITLE)
         self.ax_errors.set_title(ERRORS_SUBPLOT_TITLE)
         self.ax_errors.set_xlabel(ERRORS_SUBPLOT_XLABEL)
@@ -79,6 +81,7 @@ class Plotter:
             self.mlp.init_weights()
             self.plot_decision_boundaries(self.mlp.weights[0])
             self.mlp_weights_initialized = True
+            self.mlp.TRAINING_ALGORITHM = MultiLayerPerceptron.QUICKPROP
 
     def __fit_mlp(self, event):
         for boundary in self.mlp_decision_boundaries:
@@ -103,10 +106,19 @@ class Plotter:
                 )
             self.current_epoch_text.set_text(CURRENT_EPOCH_TEXT % self.current_epoch)
             plt.pause(MAIN_SUBPLOT_PAUSE_INTERVAL)
-            self.mlp_fitted = True
+            if self.quickprop_done:
+                self.mlp_fitted = True
+            else:
+                self.mlp.TRAINING_ALGORITHM = MultiLayerPerceptron.BACKPROPAGATION
+                self.quickprop_done = True
             self.algorithm_convergence_text.set_text(None)
         self.plot_decision_regions()
         plt.pause(MAIN_SUBPLOT_PAUSE_INTERVAL)
+        if self.quickprop_done and not self.mlp_fitted:
+            for item in self.mlp_sweep.collections:
+                item.remove()
+            self.mlp_sweep = None
+            self.fig.suptitle(FIG_SUPERIOR_TITLE % STD_ALGORITHM_NAME)
 
     def __switch_data_set(self, event):
         self.current_data_set = not self.current_data_set
@@ -127,8 +139,7 @@ class Plotter:
             guess_index = int(guess_index_string, 2)
             new_z = np.append(new_z, guess_index)
         Z = new_z.reshape(x.shape)
-
-        self.ax_main.contourf(x, y, Z, alpha=0.2, cmap=cmap)
+        self.mlp_sweep = self.ax_main.contourf(x, y, Z, alpha=0.2, cmap=cmap)
 
     def plot_decision_boundaries(self, weights):
         creating_boundaries = len(self.mlp_decision_boundaries) == 0
@@ -159,16 +170,27 @@ class Plotter:
             plt.pause(MAIN_SUBPLOT_PAUSE_INTERVAL)
 
     def plot_errors(self, cumulative_error):
+        is_qp = int(not self.quickprop_done)
         if not self.mlp_errors:
-            self.mlp_errors = [[], []]
+            self.mlp_errors = [[[], []], [[], []]]
         else:
             self.ax_errors.clear()
         self.ax_errors.set_title(ERRORS_SUBPLOT_TITLE)
         self.ax_errors.set_xlabel(ERRORS_SUBPLOT_XLABEL)
         self.ax_errors.set_ylabel(ERRORS_SUBPLOT_YLABEL)
-        self.mlp_errors[0].append(self.current_epoch)
-        self.mlp_errors[1].append(cumulative_error)
-        self.ax_errors.plot(self.mlp_errors[0], self.mlp_errors[1], ERRORS_PLOT_MARKER)
+        self.mlp_errors[is_qp][0].append(self.current_epoch)
+        self.mlp_errors[is_qp][1].append(cumulative_error)
+        if self.quickprop_done:
+            self.ax_errors.plot(
+                self.mlp_errors[1][0],
+                self.mlp_errors[1][1],
+                QP_ERRORS_PLOT_MARKER
+            )
+        self.ax_errors.plot(
+            self.mlp_errors[is_qp][0],
+            self.mlp_errors[is_qp][1],
+            STD_ERRORS_PLOT_MARKER if self.quickprop_done else QP_ERRORS_PLOT_MARKER
+        )
         plt.pause(ERRORS_SUBPLOT_PAUSE_INTERVAL)
 
     def __onclick(self, event):
