@@ -95,12 +95,12 @@ class MultiLayerPerceptron:
         for i in range(len(self.weights)):
             gradient = np.dot(self.s[i], self.a[i].T)
             if is_first_QP_iteration:  # Standard BackPropagation
-                nabla_w = gradient
+                nabla_w = - learning_rate * gradient
                 self.last_gradient.append(gradient)
                 self.last_nabla_w.append(nabla_w)
             else:
                 divisor = self.last_gradient[i] - gradient
-                divisor[divisor == 0] = 0.01
+                divisor[divisor == 0] = 0.0001
                 delta = gradient / divisor
                 temp = delta * self.last_nabla_w[i]
                 maximum_growth_factor = miu * self.last_nabla_w[i]
@@ -108,18 +108,19 @@ class MultiLayerPerceptron:
                 temp_is_greater_than_miu = temp > maximum_growth_factor
                 temp[temp_is_greater_than_miu] = maximum_growth_factor[temp_is_greater_than_miu]
                 last_gradient_and_current_gradient_product = self.last_gradient[i] * gradient
-                nabla_w = temp + learning_rate * gradient
+                gradient_descent = -learning_rate * gradient
+                nabla_w = temp + gradient_descent
                 # if last gradient * current gradient < 0:
                 gradients_product_is_less_than_zero = last_gradient_and_current_gradient_product < np.zeros(
                     last_gradient_and_current_gradient_product.shape
                 )
                 nabla_w[gradients_product_is_less_than_zero] = temp[gradients_product_is_less_than_zero]
+                nabla_too_small = nabla_w < np.ones(nabla_w.shape) * 1e-15
+                nabla_w[nabla_too_small] = gradient_descent[nabla_too_small]
                 self.last_gradient[i] = gradient
                 self.last_nabla_w[i] = nabla_w
-            new_w = self.weights[i] - learning_rate * nabla_w
+            new_w = self.weights[i] + nabla_w
             self.weights[i] = new_w
-        self.last_gradient = None
-        self.last_nabla_w = None
 
     def fit(self, inputs, desired_outputs, epochs, learning_rate, desired_error=None, plotter=None):
         converged = False
