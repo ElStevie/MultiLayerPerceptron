@@ -84,6 +84,11 @@ class Plotter:
             self.mlp.TRAINING_ALGORITHM = MultiLayerPerceptron.QUICKPROP
 
     def __fit_mlp(self, event):
+        if self.quickprop_done and not self.mlp_fitted:
+            for item in self.mlp_sweep.collections:
+                item.remove()
+            self.mlp_sweep = None
+            self.fig.suptitle(FIG_SUPERIOR_TITLE % STD_ALGORITHM_NAME)
         for boundary in self.mlp_decision_boundaries:
             boundary.remove()
         self.mlp_decision_boundaries = []
@@ -114,11 +119,6 @@ class Plotter:
             self.algorithm_convergence_text.set_text(None)
         self.plot_decision_regions()
         plt.pause(MAIN_SUBPLOT_PAUSE_INTERVAL)
-        if self.quickprop_done and not self.mlp_fitted:
-            for item in self.mlp_sweep.collections:
-                item.remove()
-            self.mlp_sweep = None
-            self.fig.suptitle(FIG_SUPERIOR_TITLE % STD_ALGORITHM_NAME)
 
     def __switch_data_set(self, event):
         self.current_data_set = not self.current_data_set
@@ -199,7 +199,7 @@ class Plotter:
             is_right_click = event.button == MouseButton.RIGHT
             marker_index_string = str(int(self.current_data_set)) + str(int(is_right_click))
             marker_index = int(marker_index_string, 2)
-            if self.mlp_fitted:
+            if self.quickprop_done or self.mlp_fitted:
                 guess = self.mlp.guess(current_point)
                 guess_index_string = ""
                 for x in guess:
