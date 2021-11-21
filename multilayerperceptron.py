@@ -4,6 +4,8 @@ import numpy as np
 class MultiLayerPerceptron:
     SIGMOID_FUNCTION = 0
     TANH_FUNCTION = 1
+    BACKPROPAGATION = 0
+    QUICKPROP = 1
 
     __ACTIVATIONS_FUNCTIONS = {
         SIGMOID_FUNCTION: lambda x: 1 / (1 + np.exp(-x)),
@@ -16,6 +18,7 @@ class MultiLayerPerceptron:
     }
 
     ACTIVATION_FUNCTION = SIGMOID_FUNCTION
+    TRAINING_ALGORITHM = BACKPROPAGATION
 
     def __init__(self, input_vector_size, num_neurons_in_hidden_layers, num_neurons_output, normalization_range=None):
         self.input_vector_size = input_vector_size
@@ -27,6 +30,9 @@ class MultiLayerPerceptron:
         self.n = []
         self.s = []
         self.derivatives = []
+        self.error_reached_QP = None
+        self.last_gradient = None
+        self.last_nabla_w = None
 
     def init_weights(self):
         def get_weights_within_normalization_range(size):
@@ -80,10 +86,48 @@ class MultiLayerPerceptron:
             new_w = self.weights[i] - learning_rate * np.dot(self.s[i], self.a[i].T)
             self.weights[i] = new_w
 
+    def quickprop(self, learning_rate):
+        miu = 1.75  # Recommended value by Scott Fahlman
+        is_first_QP_iteration = self.last_gradient is None
+        if is_first_QP_iteration:
+            self.last_gradient = []
+            self.last_nabla_w = []
+        for i in range(len(self.weights)):
+            gradient = np.dot(self.s[i], self.a[i].T)
+            if is_first_QP_iteration:  # Standard BackPropagation
+                nabla_w = gradient
+                self.last_gradient.append(np.sum(gradient))
+                self.last_nabla_w.append(nabla_w)
+            else:
+                divisor = self.last_gradient[i] - gradient
+                divisor[divisor == 0] = 0.01
+                delta = gradient / divisor
+                temp = delta * self.last_nabla_w[i]
+                maximum_growth_factor = miu * self.last_nabla_w[i]
+                # if temp > miu * last gradient:
+                temp_is_greater_than_miu = temp > maximum_growth_factor
+                temp[temp_is_greater_than_miu] = maximum_growth_factor[temp_is_greater_than_miu]
+                last_gradient_and_current_gradient_product = self.last_gradient[i] * gradient
+                nabla_w = temp + learning_rate * gradient
+                # if last gradient * current gradient < 0:
+                gradients_product_is_less_than_zero = last_gradient_and_current_gradient_product < np.zeros(
+                    last_gradient_and_current_gradient_product.shape
+                )
+                nabla_w[gradients_product_is_less_than_zero] = temp[gradients_product_is_less_than_zero]
+                self.last_gradient[i] = gradient
+                self.last_nabla_w[i] = nabla_w
+            new_w = self.weights[i] - learning_rate * nabla_w
+            self.weights[i] = new_w
+        self.last_gradient = None
+        self.last_nabla_w = None
+
     def fit(self, inputs, desired_outputs, epochs, learning_rate, desired_error=None, plotter=None):
         converged = False
         cumulative_error = desired_error if desired_error else 1
-        for epoch in range(epochs):
+        starting_epoch = plotter.current_epoch + 1
+        last_epoch = starting_epoch + epochs
+        error_reached = [0, 0]
+        for epoch in range(starting_epoch, last_epoch):
             if plotter:
                 plotter.current_epoch = epoch
             if desired_error and cumulative_error < desired_error:
@@ -96,11 +140,21 @@ class MultiLayerPerceptron:
                 error = desired_output - output
                 squared_error = np.dot(error.T, error)
                 self.back_propagate(error)
-                self.gradient_descent(learning_rate)
+                if self.TRAINING_ALGORITHM == MultiLayerPerceptron.BACKPROPAGATION:
+                    self.gradient_descent(learning_rate)
+                else:
+                    self.quickprop(learning_rate)
                 cumulative_error += squared_error[0][0]
+                error_reached[0] = cumulative_error
+                error_reached[1] = epoch
             if plotter:
                 plotter.plot_errors(cumulative_error)
-            print(f"Error at epoch {epoch}: {cumulative_error}")
+            print(f"[{'QP' if self.TRAINING_ALGORITHM == MultiLayerPerceptron.QUICKPROP else 'STD'}] "
+                  f"Error at epoch {epoch}: {cumulative_error}")
+        if self.TRAINING_ALGORITHM == MultiLayerPerceptron.BACKPROPAGATION:
+            print(f"Error reached with QP: {self.error_reached_QP[0]} within {self.error_reached_QP[1]} epochs")
+        else:
+            self.error_reached_QP = error_reached
         return converged
 
     def guess(self, _input, discrete_output=True):
