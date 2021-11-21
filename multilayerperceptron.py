@@ -96,7 +96,7 @@ class MultiLayerPerceptron:
             gradient = np.dot(self.s[i], self.a[i].T)
             if is_first_QP_iteration:  # Standard BackPropagation
                 nabla_w = gradient
-                self.last_gradient.append(np.sum(gradient))
+                self.last_gradient.append(gradient)
                 self.last_nabla_w.append(nabla_w)
             else:
                 divisor = self.last_gradient[i] - gradient
