@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 
 
@@ -73,7 +75,7 @@ class MultiLayerPerceptron:
             derivatives = np.diag(d.reshape((d.shape[0],)))
             self.derivatives = [derivatives] + self.derivatives
             if is_output_layer:
-                s = -2 * np.dot(derivatives, error)
+                s = np.dot(derivatives, error)
                 self.s.append(s)
             else:
                 weights = np.delete(self.weights[i], 0, 1)
@@ -83,7 +85,7 @@ class MultiLayerPerceptron:
 
     def gradient_descent(self, learning_rate):
         for i in range(len(self.weights)):
-            new_w = self.weights[i] - learning_rate * np.dot(self.s[i], self.a[i].T)
+            new_w = self.weights[i] + learning_rate * np.dot(self.s[i], self.a[i].T)
             self.weights[i] = new_w
 
     def quickprop(self, learning_rate):
@@ -95,9 +97,9 @@ class MultiLayerPerceptron:
         for i in range(len(self.weights)):
             gradient = np.dot(self.s[i], self.a[i].T)
             if is_first_QP_iteration:  # Standard BackPropagation
-                nabla_w = - learning_rate * gradient
-                self.last_gradient.append(gradient)
-                self.last_nabla_w.append(nabla_w)
+                nabla_w = learning_rate * gradient
+                self.last_gradient.append(deepcopy(gradient))
+                self.last_nabla_w.append(deepcopy(nabla_w))
             else:
                 divisor = self.last_gradient[i] - gradient
                 divisor[divisor == 0] = 0.0001
@@ -108,17 +110,17 @@ class MultiLayerPerceptron:
                 temp_is_greater_than_miu = temp > maximum_growth_factor
                 temp[temp_is_greater_than_miu] = maximum_growth_factor[temp_is_greater_than_miu]
                 last_gradient_and_current_gradient_product = self.last_gradient[i] * gradient
-                gradient_descent = -learning_rate * gradient
+                gradient_descent = learning_rate * gradient
                 nabla_w = temp + gradient_descent
                 # if last gradient * current gradient < 0:
                 gradients_product_is_less_than_zero = last_gradient_and_current_gradient_product < np.zeros(
                     last_gradient_and_current_gradient_product.shape
                 )
                 nabla_w[gradients_product_is_less_than_zero] = temp[gradients_product_is_less_than_zero]
-                nabla_too_small = nabla_w < np.ones(nabla_w.shape) * 1e-15
+                nabla_too_small = nabla_w < np.ones(nabla_w.shape) * 1e-9
                 nabla_w[nabla_too_small] = gradient_descent[nabla_too_small]
-                self.last_gradient[i] = gradient
-                self.last_nabla_w[i] = nabla_w
+                self.last_gradient[i] = deepcopy(gradient)
+                self.last_nabla_w[i] = deepcopy(nabla_w)
             new_w = self.weights[i] + nabla_w
             self.weights[i] = new_w
 
@@ -141,18 +143,18 @@ class MultiLayerPerceptron:
                 error = desired_output - output
                 squared_error = np.dot(error.T, error)
                 self.back_propagate(error)
+                cumulative_error += squared_error[0][0]
                 if self.TRAINING_ALGORITHM == MultiLayerPerceptron.BACKPROPAGATION:
                     self.gradient_descent(learning_rate)
                 else:
                     self.quickprop(learning_rate)
-                cumulative_error += squared_error[0][0]
-                error_reached[0] = cumulative_error
-                error_reached[1] = epoch
+                    error_reached[0] = cumulative_error
+                    error_reached[1] = epoch
             if plotter:
                 plotter.plot_errors(cumulative_error)
             print(f"[{'QP' if self.TRAINING_ALGORITHM == MultiLayerPerceptron.QUICKPROP else 'STD'}] "
                   f"Error at epoch {epoch}: {cumulative_error}")
-        if self.TRAINING_ALGORITHM == MultiLayerPerceptron.BACKPROPAGATION:
+        if self.error_reached_QP and self.TRAINING_ALGORITHM == MultiLayerPerceptron.BACKPROPAGATION:
             print(f"Error reached with QP: {self.error_reached_QP[0]} within {self.error_reached_QP[1]} epochs")
         else:
             self.error_reached_QP = error_reached
